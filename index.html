@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資工基礎小測驗</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a66;
+    --line: #e3e0d8; --accent: #2f5d50; --accent-ink: #ffffff;
+    --ok: #2e7d4f; --ok-bg: #e6f3eb; --bad: #b3402e; --bad-bg: #f8e8e4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161614; --card: #21211e; --ink: #ecebe6; --muted: #a09f99;
+      --line: #34332f; --accent: #7fbfa8; --accent-ink: #10201b;
+      --ok: #7fd1a0; --ok-bg: #1d3226; --bad: #f09a88; --bad-bg: #3a221d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  main { max-width: 680px; margin: 0 auto; padding: 32px 16px 64px; }
+  header h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: .02em; }
+  header p { margin: 0; color: var(--muted); }
+  .progress { height: 6px; background: var(--line); border-radius: 99px; margin: 24px 0 8px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: .9rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 24px; margin-top: 16px;
+  }
+  .q { font-size: 1.15rem; font-weight: 600; margin: 0 0 16px; }
+  .opts { display: grid; gap: 10px; }
+  .opt {
+    text-align: left; font: inherit; color: inherit; background: transparent;
+    border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--ok); background: var(--ok-bg); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+  .explain { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--bg); display: none; }
+  .explain.show { display: block; }
+  .explain b.ok { color: var(--ok); } .explain b.bad { color: var(--bad); }
+  .actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .btn {
+    font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 10px 20px;
+    background: var(--accent); color: var(--accent-ink); cursor: pointer;
+  }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .result { text-align: center; }
+  .score { font-size: 3rem; font-weight: 700; color: var(--accent); margin: 8px 0; }
+  .review { text-align: left; margin-top: 20px; padding: 0; list-style: none; }
+  .review li { padding: 10px 0; border-top: 1px solid var(--line); font-size: .95rem; }
+  .review .tag { font-weight: 700; margin-right: 6px; }
+  .review .tag.ok { color: var(--ok); } .review .tag.bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>資工基礎小測驗</h1>
+    <p>12 題選擇題，涵蓋資料結構、演算法、網路、資料庫與作業系統。</p>
+  </header>
+  <div class="progress"><div id="bar"></div></div>
+  <div class="meta"><span id="count"></span><span id="live"></span></div>
+  <section id="stage"></section>
+</main>
+
+<script>
+const QUESTIONS = [
+  { q: "堆疊 (Stack) 的存取順序是？", opts: ["先進先出 FIFO", "後進先出 LIFO", "依優先權", "隨機存取"], a: 1,
+    e: "Stack 是 Last In, First Out：最後放進去的元素最先被取出。" },
+  { q: "在已排序的陣列中做二元搜尋，時間複雜度為？", opts: ["O(1)", "O(n)", "O(log n)", "O(n log n)"], a: 2,
+    e: "每次比較都把搜尋範圍減半，因此是 O(log n)。" },
+  { q: "下列哪個排序演算法的平均時間複雜度是 O(n²)？", opts: ["Merge Sort", "Quick Sort", "Heap Sort", "Bubble Sort"], a: 3,
+    e: "Bubble Sort 平均與最壞都是 O(n²)；其他三者平均為 O(n log n)。" },
+  { q: "HTTP 狀態碼 404 代表什麼？", opts: ["伺服器內部錯誤", "找不到資源", "未授權", "請求成功"], a: 1,
+    e: "404 Not Found；500 是伺服器錯誤，401 是未授權，200 是成功。" },
+  { q: "TCP 與 UDP 最主要的差異是？", opts: ["TCP 是連線導向且保證可靠傳輸", "UDP 一定比 TCP 安全", "TCP 不需要建立連線", "UDP 保證封包順序"], a: 0,
+    e: "TCP 透過三方交握建立連線，並有重傳與排序機制；UDP 無連線、不保證送達。" },
+  { q: "SQL 中用來篩選分組後結果的關鍵字是？", opts: ["WHERE", "ORDER BY", "HAVING", "LIMIT"], a: 2,
+    e: "WHERE 在分組前篩選資料列，HAVING 在 GROUP BY 之後篩選群組。" },
+  { q: "資料庫交易的 ACID 中，「I」代表？", opts: ["Integrity 完整性", "Isolation 隔離性", "Index 索引", "Identity 識別"], a: 1,
+    e: "ACID = Atomicity、Consistency、Isolation、Durability。" },
+  { q: "二元樹的中序走訪 (In-order) 順序是？", opts: ["根 → 左 → 右", "左 → 右 → 根", "左 → 根 → 右", "右 → 根 → 左"], a: 2,
+    e: "In-order 為 左 → 根 → 右；對二元搜尋樹做中序走訪會得到遞增序列。" },
+  { q: "下列何者不是死結 (Deadlock) 發生的必要條件？", opts: ["互斥 Mutual Exclusion", "持有並等待 Hold and Wait", "可搶佔 Preemption", "循環等待 Circular Wait"], a: 2,
+    e: "必要條件是「不可搶佔 (No Preemption)」，若資源可以被搶佔就不會形成死結。" },
+  { q: "雜湊表 (Hash Table) 平均情況下查詢的時間複雜度是？", opts: ["O(1)", "O(log n)", "O(n)", "O(n²)"], a: 0,
+    e: "雜湊函數直接算出位置，平均 O(1)；碰撞嚴重時最壞會退化到 O(n)。" },
+  { q: "IPv4 位址的長度是幾個位元？", opts: ["16 bits", "32 bits", "64 bits", "128 bits"], a: 1,
+    e: "IPv4 是 32 位元（如 192.168.0.1），IPv6 才是 128 位元。" },
+  { q: "Git 中把遠端更新抓下來並合併到目前分支的指令是？", opts: ["git push", "git commit", "git pull", "git clone"], a: 2,
+    e: "git pull 等於 git fetch + git merge。" },
+];
+
+const stage = document.getElementById("stage");
+const bar = document.getElementById("bar");
+const count = document.getElementById("count");
+const live = document.getElementById("live");
+let i = 0, score = 0, answers = [];
+
+function render() {
+  const total = QUESTIONS.length;
+  bar.style.width = (i / total * 100) + "%";
+  if (i >= total) return renderResult();
+  count.textContent = `第 ${i + 1} / ${total} 題`;
+  live.textContent = `得分 ${score}`;
+  const item = QUESTIONS[i];
+  stage.innerHTML = `
+    <div class="card">
+      <p class="q"></p>
+      <div class="opts"></div>
+      <div class="explain"></div>
+      <div class="actions"><button class="btn" disabled>${i === total - 1 ? "看結果" : "下一題"}</button></div>
+    </div>`;
+  stage.querySelector(".q").textContent = item.q;
+  const opts = stage.querySelector(".opts");
+  const explain = stage.querySelector(".explain");
+  const next = stage.querySelector(".btn");
+  item.opts.forEach((text, idx) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.textContent = String.fromCharCode(65 + idx) + ". " + text;
+    b.onclick = () => {
+      const buttons = opts.querySelectorAll(".opt");
+      buttons.forEach(x => x.disabled = true);
+      buttons[item.a].classList.add("correct");
+      const right = idx === item.a;
+      if (right) score++; else b.classList.add("wrong");
+      answers.push(right);
+      live.textContent = `得分 ${score}`;
+      explain.innerHTML = `<b class="${right ? "ok" : "bad"}">${right ? "答對了！" : "答錯了。"}</b> `;
+      explain.append(item.e);
+      explain.classList.add("show");
+      next.disabled = false;
+      next.focus();
+    };
+    opts.appendChild(b);
+  });
+  next.onclick = () => { i++; render(); };
+}
+
+function renderResult() {
+  const total = QUESTIONS.length;
+  const pct = Math.round(score / total * 100);
+  count.textContent = "完成！";
+  live.textContent = "";
+  const msg = pct >= 90 ? "太強了，基礎非常紮實！" : pct >= 60 ? "不錯，再複習一下錯的題目。" : "加油，建議回頭看看解析。";
+  stage.innerHTML = `
+    <div class="card result">
+      <div>你的分數</div>
+      <div class="score">${score} / ${total}</div>
+      <div>${msg}</div>
+      <ul class="review"></ul>
+      <div class="actions" style="justify-content:center"><button class="btn">再玩一次</button></div>
+    </div>`;
+  const ul = stage.querySelector(".review");
+  QUESTIONS.forEach((item, k) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="tag ${answers[k] ? "ok" : "bad"}">${answers[k] ? "✓" : "✗"}</span>`;
+    li.append(`${k + 1}. ${item.q}　正解：${item.opts[item.a]}`);
+    ul.appendChild(li);
+  });
+  stage.querySelector(".btn").onclick = () => { i = 0; score = 0; answers = []; render(); };
+}
+
+render();
+</script>
+</body>
+</html>
